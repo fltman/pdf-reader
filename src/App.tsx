@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import PDFViewer from './components/PDFViewer';
 import DocumentSummary from './components/DocumentSummary';
 import Keywords from './components/Keywords';
@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [vectorStoreId, setVectorStoreId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'summary' | 'chat' | 'mindmap' | 'notes'>('summary');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -42,18 +43,44 @@ const App: React.FC = () => {
   // Cache the components that don't need to be re-rendered
   const summarySection = useMemo(() => (
     <div className="space-y-4">
-      <DocumentSummary threadId={threadId} assistantId={assistantId} />
-      <Keywords threadId={threadId} assistantId={assistantId} />
+      {isInitialized && threadId && assistantId && (
+        <>
+          <DocumentSummary 
+            threadId={threadId} 
+            assistantId={assistantId} 
+            isActive={activeTab === 'summary'} 
+          />
+          <Keywords 
+            threadId={threadId} 
+            assistantId={assistantId} 
+            isActive={activeTab === 'summary'} 
+          />
+        </>
+      )}
     </div>
-  ), [threadId, assistantId]);
+  ), [threadId, assistantId, activeTab, isInitialized]);
+
+  useEffect(() => {
+    if (threadId && assistantId && !isInitialized) {
+      setIsInitialized(true);
+    }
+  }, [threadId, assistantId]);
 
   const mindMapSection = useMemo(() => (
-    <MindMap threadId={threadId} assistantId={assistantId} />
-  ), [threadId, assistantId]);
+    <MindMap 
+      threadId={threadId} 
+      assistantId={assistantId} 
+      isActive={activeTab === 'mindmap'} 
+    />
+  ), [threadId, assistantId, activeTab]);
 
   const chatSection = useMemo(() => (
-    <DocumentChat threadId={threadId} assistantId={assistantId} />
-  ), [threadId, assistantId]);
+    <DocumentChat 
+      threadId={threadId} 
+      assistantId={assistantId} 
+      isActive={activeTab === 'chat'} 
+    />
+  ), [threadId, assistantId, activeTab]);
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
@@ -146,11 +173,7 @@ const App: React.FC = () => {
                 {summarySection}
               </div>
               <div className={activeTab === 'chat' ? 'block' : 'hidden'}>
-                <DocumentChat 
-                  threadId={threadId} 
-                  assistantId={assistantId} 
-                  isActive={activeTab === 'chat'} 
-                />
+                {chatSection}
               </div>
               <div className={activeTab === 'mindmap' ? 'block' : 'hidden'}>
                 {mindMapSection}

@@ -4,16 +4,18 @@ import { generateSummary } from '../services/OpenAIService';
 interface DocumentSummaryProps {
   threadId: string | null;
   assistantId: string | null;
+  isActive: boolean;
 }
 
-const DocumentSummary: React.FC<DocumentSummaryProps> = ({ threadId, assistantId }) => {
+const DocumentSummary: React.FC<DocumentSummaryProps> = ({ threadId, assistantId, isActive }) => {
   const [summary, setSummary] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
   useEffect(() => {
     const getSummary = async () => {
-      if (!threadId || !assistantId) return;
+      if (!threadId || !assistantId || !isActive || hasGenerated) return;
       
       setLoading(true);
       setError(null);
@@ -21,6 +23,7 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({ threadId, assistantId
       try {
         const result = await generateSummary(threadId, assistantId);
         setSummary(result);
+        setHasGenerated(true);
       } catch (err) {
         setError('Failed to generate summary. Please try again.');
         console.error('Summary generation error:', err);
@@ -30,7 +33,7 @@ const DocumentSummary: React.FC<DocumentSummaryProps> = ({ threadId, assistantId
     };
 
     getSummary();
-  }, [threadId, assistantId]);
+  }, [threadId, assistantId, isActive, hasGenerated]);
 
   if (loading) {
     return (

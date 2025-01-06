@@ -4,16 +4,18 @@ import { extractKeywords } from '../services/OpenAIService';
 interface KeywordsProps {
   threadId: string | null;
   assistantId: string | null;
+  isActive: boolean;
 }
 
-const Keywords: React.FC<KeywordsProps> = ({ threadId, assistantId }) => {
+const Keywords: React.FC<KeywordsProps> = ({ threadId, assistantId, isActive }) => {
   const [keywords, setKeywords] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
   useEffect(() => {
     const getKeywords = async () => {
-      if (!threadId || !assistantId) return;
+      if (!threadId || !assistantId || !isActive || hasGenerated) return;
       
       setLoading(true);
       setError(null);
@@ -21,6 +23,7 @@ const Keywords: React.FC<KeywordsProps> = ({ threadId, assistantId }) => {
       try {
         const result = await extractKeywords(threadId, assistantId);
         setKeywords(result);
+        setHasGenerated(true);
       } catch (err) {
         setError('Failed to extract keywords. Please try again.');
         console.error('Keyword extraction error:', err);
@@ -30,7 +33,7 @@ const Keywords: React.FC<KeywordsProps> = ({ threadId, assistantId }) => {
     };
 
     getKeywords();
-  }, [threadId, assistantId]);
+  }, [threadId, assistantId, isActive, hasGenerated]);
 
   if (loading) {
     return (

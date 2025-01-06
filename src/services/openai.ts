@@ -1,5 +1,8 @@
 import OpenAI from 'openai';
 
+// Cache for storing responses
+const responseCache = new Map<string, string>();
+
 const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
   dangerouslyAllowBrowser: true,
@@ -71,15 +74,43 @@ export const initializeAssistant = async (file: File) => {
 };
 
 export const generateSummary = async (assistantId: string, threadId: string) => {
+  const cacheKey = `summary-${threadId}`;
+  if (responseCache.has(cacheKey)) {
+    return responseCache.get(cacheKey)!;
+  }
+
   try {
     const run = await openai.beta.threads.runs.create(threadId, {
       assistant_id: assistantId,
       instructions: "Please provide a concise summary of the document."
     });
 
-    return await pollRunCompletion(threadId, run.id);
+    const summary = await pollRunCompletion(threadId, run.id);
+    responseCache.set(cacheKey, summary);
+    return summary;
   } catch (error) {
     console.error('Error generating summary:', error);
+    throw error;
+  }
+};
+
+export const generateKeywords = async (assistantId: string, threadId: string) => {
+  const cacheKey = `keywords-${threadId}`;
+  if (responseCache.has(cacheKey)) {
+    return responseCache.get(cacheKey)!;
+  }
+
+  try {
+    const run = await openai.beta.threads.runs.create(threadId, {
+      assistant_id: assistantId,
+      instructions: "Please extract the main keywords from the document."
+    });
+
+    const keywords = await pollRunCompletion(threadId, run.id);
+    responseCache.set(cacheKey, keywords);
+    return keywords;
+  } catch (error) {
+    console.error('Error generating keywords:', error);
     throw error;
   }
 };

@@ -5,6 +5,7 @@ import { generateMindMap } from '../services/OpenAIService';
 interface MindMapProps {
   threadId: string | null;
   assistantId: string | null;
+  isActive: boolean;
 }
 
 interface Node {
@@ -34,11 +35,12 @@ interface ForceGraphData {
   }[];
 }
 
-const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
+const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId, isActive }) => {
   const [graphData, setGraphData] = useState<ForceGraphData>({ nodes: [], links: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [hasGenerated, setHasGenerated] = useState(false);
   const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -69,10 +71,10 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
     };
   }, []);
 
-  // Load initial data
+  // Generate mind map when component becomes active
   useEffect(() => {
     const generateGraph = async () => {
-      if (!threadId || !assistantId) return;
+      if (!threadId || !assistantId || !isActive || hasGenerated) return;
 
       setLoading(true);
       setError(null);
@@ -99,6 +101,7 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
         }).filter((link): link is NonNullable<typeof link> => link !== null);
 
         setGraphData({ nodes, links });
+        setHasGenerated(true);
 
         // Configure force simulation after a short delay
         setTimeout(() => {
@@ -123,7 +126,7 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
     };
 
     generateGraph();
-  }, [threadId, assistantId, dimensions.width, dimensions.height]);
+  }, [threadId, assistantId, dimensions.width, dimensions.height, isActive, hasGenerated]);
 
   if (loading) {
     return (
