@@ -38,7 +38,7 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
   const [graphData, setGraphData] = useState<ForceGraphData>({ nodes: [], links: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -52,12 +52,16 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
       }
     };
 
+    // Initial update
     updateDimensions();
+
+    // Set up resize observer
     const resizeObserver = new ResizeObserver(updateDimensions);
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
     }
 
+    // Clean up
     return () => {
       if (containerRef.current) {
         resizeObserver.unobserve(containerRef.current);
@@ -74,21 +78,19 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
       setError(null);
 
       try {
-        console.log('Requesting mind map data...');
         const result = await generateMindMap(threadId, assistantId);
-        console.log('Received mind map data:', result);
 
+        // Initialize node positions
         const nodes = result.nodes.map(node => ({
           ...node,
           x: Math.random() * dimensions.width,
           y: Math.random() * dimensions.height
         }));
-        console.log('Processing nodes:', nodes);
 
+        // Create links with node references
         const links = result.links.map(link => {
           const sourceNode = nodes.find(node => node.id === link.source);
           const targetNode = nodes.find(node => node.id === link.target);
-          console.log('Processing link:', { link, sourceNode, targetNode });
           if (!sourceNode || !targetNode) return null;
           return {
             source: sourceNode,
@@ -96,23 +98,18 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
           };
         }).filter((link): link is NonNullable<typeof link> => link !== null);
 
-        console.log('Processed links:', links);
+        setGraphData({ nodes, links });
 
-        const graphData = { nodes, links };
-        console.log('Setting graph data:', graphData);
-        setGraphData(graphData);
-
-        // Initial force simulation configuration
+        // Configure force simulation after a short delay
         setTimeout(() => {
           if (graphRef.current) {
-            console.log('Configuring force simulation...');
             graphRef.current.d3Force('link').distance(100);
             graphRef.current.d3Force('charge').strength(-300);
             graphRef.current.d3Force('center').strength(0.1);
             graphRef.current.d3ReheatSimulation();
             
+            // Zoom to fit after force simulation has started
             setTimeout(() => {
-              console.log('Zooming to fit...');
               graphRef.current?.zoomToFit(400, 50);
             }, 500);
           }
@@ -148,9 +145,15 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
 
   return (
     <div className="p-4 bg-white rounded-lg shadow">
-      <h2 className="text-xl font-bold mb-4">Mind Map</h2>
-      <div ref={containerRef} className="mindmap-container h-[500px] border rounded-lg overflow-hidden relative">
-        {graphData.nodes.length > 0 && dimensions.width > 0 && dimensions.height > 0 && (
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">Mind Map</h2>
+      </div>
+      <div 
+        ref={containerRef} 
+        style={{ width: '100%', height: '500px' }}
+        className="border rounded-lg overflow-hidden relative"
+      >
+        {dimensions.width > 0 && dimensions.height > 0 && graphData.nodes.length > 0 && (
           <ForceGraph2D
             ref={graphRef}
             graphData={graphData}

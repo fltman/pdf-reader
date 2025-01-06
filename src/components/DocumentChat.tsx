@@ -4,6 +4,7 @@ import { chatWithAI } from '../services/OpenAIService';
 interface DocumentChatProps {
   threadId: string | null;
   assistantId: string | null;
+  isActive: boolean;
 }
 
 interface Message {
@@ -11,11 +12,12 @@ interface Message {
   content: string;
 }
 
-const DocumentChat: React.FC<DocumentChatProps> = ({ threadId, assistantId }) => {
+const DocumentChat: React.FC<DocumentChatProps> = ({ threadId, assistantId, isActive }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -24,6 +26,13 @@ const DocumentChat: React.FC<DocumentChatProps> = ({ threadId, assistantId }) =>
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    // Focus the input field when component becomes active
+    if (isActive) {
+      inputRef.current?.focus();
+    }
+  }, [isActive]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || loading || !threadId || !assistantId) return;
@@ -101,6 +110,7 @@ const DocumentChat: React.FC<DocumentChatProps> = ({ threadId, assistantId }) =>
 
       <div className="flex gap-2">
         <input
+          ref={inputRef}
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}

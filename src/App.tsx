@@ -15,7 +15,7 @@ const App: React.FC = () => {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [vectorStoreId, setVectorStoreId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'summary' | 'chat' | 'mindmap'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'chat' | 'mindmap' | 'notes'>('summary');
 
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -94,7 +94,6 @@ const App: React.FC = () => {
               setTotalPages={setTotalPages}
               pdfDocument={pdfDocument}
             />
-            <PageNotes currentPage={currentPage} />
           </div>
           
           <div className="w-1/3 flex flex-col gap-4">
@@ -130,6 +129,16 @@ const App: React.FC = () => {
                 >
                   Mind Map
                 </button>
+                <button
+                  onClick={() => setActiveTab('notes')}
+                  className={`px-4 py-2 rounded ${
+                    activeTab === 'notes'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Notes
+                </button>
               </div>
 
               {/* Use cached components */}
@@ -137,10 +146,17 @@ const App: React.FC = () => {
                 {summarySection}
               </div>
               <div className={activeTab === 'chat' ? 'block' : 'hidden'}>
-                {chatSection}
+                <DocumentChat 
+                  threadId={threadId} 
+                  assistantId={assistantId} 
+                  isActive={activeTab === 'chat'} 
+                />
               </div>
               <div className={activeTab === 'mindmap' ? 'block' : 'hidden'}>
                 {mindMapSection}
+              </div>
+              <div className={activeTab === 'notes' ? 'block' : 'hidden'}>
+                <PageNotes threadId={threadId} />
               </div>
             </div>
           </div>
