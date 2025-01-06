@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import PDFViewer from './components/PDFViewer';
 import DocumentSummary from './components/DocumentSummary';
 import Keywords from './components/Keywords';
@@ -38,6 +38,22 @@ const App: React.FC = () => {
       setLoading(false);
     }
   }, []);
+
+  // Cache the components that don't need to be re-rendered
+  const summarySection = useMemo(() => (
+    <div className="space-y-4">
+      <DocumentSummary threadId={threadId} assistantId={assistantId} />
+      <Keywords threadId={threadId} assistantId={assistantId} />
+    </div>
+  ), [threadId, assistantId]);
+
+  const mindMapSection = useMemo(() => (
+    <MindMap threadId={threadId} assistantId={assistantId} />
+  ), [threadId, assistantId]);
+
+  const chatSection = useMemo(() => (
+    <DocumentChat threadId={threadId} assistantId={assistantId} />
+  ), [threadId, assistantId]);
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
@@ -116,20 +132,16 @@ const App: React.FC = () => {
                 </button>
               </div>
 
-              {activeTab === 'summary' && (
-                <div className="space-y-4">
-                  <DocumentSummary threadId={threadId} assistantId={assistantId} />
-                  <Keywords threadId={threadId} assistantId={assistantId} />
-                </div>
-              )}
-
-              {activeTab === 'chat' && (
-                <DocumentChat threadId={threadId} assistantId={assistantId} />
-              )}
-
-              {activeTab === 'mindmap' && (
-                <MindMap threadId={threadId} assistantId={assistantId} />
-              )}
+              {/* Use cached components */}
+              <div className={activeTab === 'summary' ? 'block' : 'hidden'}>
+                {summarySection}
+              </div>
+              <div className={activeTab === 'chat' ? 'block' : 'hidden'}>
+                {chatSection}
+              </div>
+              <div className={activeTab === 'mindmap' ? 'block' : 'hidden'}>
+                {mindMapSection}
+              </div>
             </div>
           </div>
         </div>

@@ -39,31 +39,45 @@ class ThreadQueue {
 const threadQueue = new ThreadQueue();
 
 const getAssistantResponse = async (threadId: string, assistantId: string, run: any): Promise<string> => {
+  console.log('Getting assistant response for run:', run.id);
   let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+  console.log('Initial run status:', runStatus.status);
+
   while (runStatus.status === 'in_progress' || runStatus.status === 'queued') {
     await new Promise(resolve => setTimeout(resolve, 1000));
     runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+    console.log('Updated run status:', runStatus.status);
   }
 
   if (runStatus.status === 'completed') {
+    console.log('Run completed, retrieving messages');
     const messages = await openai.beta.threads.messages.list(threadId);
+    console.log('Messages received:', messages.data);
     const message = messages.data[0].content[0];
     if ('text' in message) {
+      console.log('Found text message:', message.text.value);
       return message.text.value;
     }
+    console.log('No text content found in message:', message);
+  } else {
+    console.log('Run did not complete successfully. Status:', runStatus.status);
   }
   return '';
 };
 
 const createThreadRun = async (threadId: string, assistantId: string, content: string): Promise<string> => {
+  console.log('Creating message in thread:', threadId);
   const message = await openai.beta.threads.messages.create(threadId, {
     role: "user",
     content
   });
+  console.log('Message created:', message);
 
+  console.log('Creating run with assistant:', assistantId);
   const run = await openai.beta.threads.runs.create(threadId, {
     assistant_id: assistantId
   });
+  console.log('Run created:', run);
 
   return getAssistantResponse(threadId, assistantId, run);
 };
@@ -109,52 +123,64 @@ interface MindMapData {
 export const generateMindMap = async (threadId: string, assistantId: string): Promise<MindMapData> => {
   const defaultGraph: MindMapData = { nodes: [], links: [] };
   
-  return threadQueue.add(threadId, () =>
-    createThreadRun(
-      threadId,
-      assistantId,
-      `Create a hierarchical mind map of the document's main concepts. Follow these steps:
+  const prompt = `Create a detailed hierarchical mind map of the document's main concepts and their relationships. Follow these steps:
 
 1. First, identify the main topic of the document - this will be the central node
-2. Then, identify 3-5 key subtopics that branch directly from the main topic
-3. For each subtopic, identify 2-3 related concepts
+2. Then, identify 4-6 key subtopics that branch directly from the main topic
+3. For each subtopic, identify 3-4 specific concepts, details, or examples
+4. Add 1-2 related points for each specific concept where relevant
 
 Format the response as a JSON object exactly like this:
 {
   "nodes": [
-    { "id": "1", "name": "Document's Main Topic", "val": 20 },
+    { "id": "1", "name": "Main Topic", "val": 20 },
     { "id": "2", "name": "Key Subtopic 1", "val": 15 },
-    { "id": "3", "name": "Key Subtopic 2", "val": 15 },
-    { "id": "4", "name": "Related Concept 1.1", "val": 10 },
-    { "id": "5", "name": "Related Concept 1.2", "val": 10 }
+    { "id": "3", "name": "Specific Concept 1.1", "val": 12 },
+    { "id": "4", "name": "Related Point 1.1.1", "val": 10 }
   ],
   "links": [
     { "source": "1", "target": "2" },
-    { "source": "1", "target": "3" },
-    { "source": "2", "target": "4" },
-    { "source": "2", "target": "5" }
+    { "source": "2", "target": "3" },
+    { "source": "3", "target": "4" }
   ]
 }
 
 Requirements:
-1. Use actual concepts from the document, not placeholder text
-2. Main topic node should have id "1" and val 20
-3. Subtopic nodes should have val 15
-4. Related concept nodes should have val 10
-5. All node IDs must be strings
-6. Include at least 8 nodes total
-7. Ensure all nodes are connected via links
-8. Return ONLY the JSON object with no additional text or explanation`
-    )
+1. Use actual concepts from the document
+2. Keep node names concise (max 4-5 words)
+3. Use the following node sizes:
+   - Main topic: val = 20
+   - Key subtopics: val = 15
+   - Specific concepts: val = 12
+   - Related points: val = 10
+4. Include at least 15-20 nodes total
+5. Ensure all nodes are connected via links
+6. Return ONLY the JSON object with no additional text`;
+
+  console.log('Generating mind map with prompt:', prompt);
+
+  return threadQueue.add(threadId, () =>
+    createThreadRun(threadId, assistantId, prompt)
   ).then(response => {
-    if (!response) return defaultGraph;
+    console.log('Raw response from OpenAI:', response);
+
+    if (!response) {
+      console.error('No response received from OpenAI');
+      return defaultGraph;
+    }
 
     try {
       // Remove any potential text before or after the JSON
       const jsonStr = response.match(/\{[\s\S]*\}/)?.[0] || '';
-      if (!jsonStr) return defaultGraph;
+      console.log('Extracted JSON string:', jsonStr);
+      
+      if (!jsonStr) {
+        console.error('No JSON structure found in response');
+        return defaultGraph;
+      }
 
       const data = JSON.parse(jsonStr) as MindMapData;
+      console.log('Parsed mind map data:', data);
       
       // Validate the structure
       if (!Array.isArray(data.nodes) || !Array.isArray(data.links)) {
@@ -169,6 +195,8 @@ Requirements:
         typeof node.val === 'number'
       );
 
+      console.log('Valid nodes:', validNodes);
+
       if (validNodes.length === 0) {
         console.error('No valid nodes found in mind map data');
         return defaultGraph;
@@ -182,20 +210,20 @@ Requirements:
         validNodes.some((n: MindMapNode) => n.id === link.target)
       );
 
+      console.log('Valid links:', validLinks);
+
       if (validLinks.length === 0) {
         console.error('No valid links found in mind map data');
         return defaultGraph;
       }
 
-      const result = {
+      const finalGraph = {
         nodes: validNodes,
         links: validLinks
       };
 
-      // Log the final structure for debugging
-      console.log('Mind map structure:', result);
-
-      return result;
+      console.log('Final mind map structure:', finalGraph);
+      return finalGraph;
     } catch (error) {
       console.error('Error parsing mind map JSON:', error);
       return defaultGraph;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { generateMindMap } from '../services/OpenAIService';
 
@@ -13,6 +13,7 @@ interface Node {
   val: number;
   x?: number;
   y?: number;
+  isExpanded?: boolean;
 }
 
 interface Link {
@@ -38,10 +39,13 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
+  const graphRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
+  // Handle window resize
   useEffect(() => {
     const updateDimensions = () => {
-      const container = document.querySelector('.mindmap-container');
+      const container = containerRef.current;
       if (container) {
         const { width, height } = container.getBoundingClientRect();
         setDimensions({ width, height });
@@ -49,10 +53,19 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
     };
 
     updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      if (containerRef.current) {
+        resizeObserver.unobserve(containerRef.current);
+      }
+    };
   }, []);
 
+  // Load initial data
   useEffect(() => {
     const generateGraph = async () => {
       if (!threadId || !assistantId) return;
@@ -61,12 +74,21 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
       setError(null);
 
       try {
+        console.log('Requesting mind map data...');
         const result = await generateMindMap(threadId, assistantId);
-        // Transform the data to ensure proper object references for links
-        const nodes = result.nodes;
+        console.log('Received mind map data:', result);
+
+        const nodes = result.nodes.map(node => ({
+          ...node,
+          x: Math.random() * dimensions.width,
+          y: Math.random() * dimensions.height
+        }));
+        console.log('Processing nodes:', nodes);
+
         const links = result.links.map(link => {
           const sourceNode = nodes.find(node => node.id === link.source);
           const targetNode = nodes.find(node => node.id === link.target);
+          console.log('Processing link:', { link, sourceNode, targetNode });
           if (!sourceNode || !targetNode) return null;
           return {
             source: sourceNode,
@@ -74,31 +96,37 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
           };
         }).filter((link): link is NonNullable<typeof link> => link !== null);
 
-        setGraphData({ nodes, links });
+        console.log('Processed links:', links);
+
+        const graphData = { nodes, links };
+        console.log('Setting graph data:', graphData);
+        setGraphData(graphData);
+
+        // Initial force simulation configuration
+        setTimeout(() => {
+          if (graphRef.current) {
+            console.log('Configuring force simulation...');
+            graphRef.current.d3Force('link').distance(100);
+            graphRef.current.d3Force('charge').strength(-300);
+            graphRef.current.d3Force('center').strength(0.1);
+            graphRef.current.d3ReheatSimulation();
+            
+            setTimeout(() => {
+              console.log('Zooming to fit...');
+              graphRef.current?.zoomToFit(400, 50);
+            }, 500);
+          }
+        }, 100);
       } catch (err) {
-        setError('Failed to generate mind map. Please try again.');
         console.error('Mind map generation error:', err);
+        setError('Failed to generate mind map. Please try again.');
       } finally {
         setLoading(false);
       }
     };
 
     generateGraph();
-  }, [threadId, assistantId]);
-
-  const handleNodeClick = useCallback((node: Node) => {
-    if (typeof node.x !== 'number' || typeof node.y !== 'number') return;
-    
-    // Center the view on the clicked node
-    const fg = document.querySelector('.force-graph');
-    if (fg) {
-      const d3Force = (fg as any).__data__;
-      if (d3Force) {
-        d3Force.centerAt(node.x, node.y, 1000);
-        d3Force.zoom(2, 1000);
-      }
-    }
-  }, []);
+  }, [threadId, assistantId, dimensions.width, dimensions.height]);
 
   if (loading) {
     return (
@@ -121,14 +149,15 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
   return (
     <div className="p-4 bg-white rounded-lg shadow">
       <h2 className="text-xl font-bold mb-4">Mind Map</h2>
-      <div className="mindmap-container h-[500px] border rounded-lg overflow-hidden">
-        {graphData.nodes.length > 0 && (
+      <div ref={containerRef} className="mindmap-container h-[500px] border rounded-lg overflow-hidden relative">
+        {graphData.nodes.length > 0 && dimensions.width > 0 && dimensions.height > 0 && (
           <ForceGraph2D
+            ref={graphRef}
             graphData={graphData}
             nodeLabel="name"
             nodeColor={(node: Node) => {
               const val = node.val || 10;
-              return val === 20 ? '#2563eb' : val === 15 ? '#3b82f6' : '#60a5fa';
+              return val === 20 ? '#2563eb' : val === 15 ? '#3b82f6' : val === 12 ? '#60a5fa' : '#93c5fd';
             }}
             nodeRelSize={8}
             linkColor={() => '#94a3b8'}
@@ -138,7 +167,14 @@ const MindMap: React.FC<MindMapProps> = ({ threadId, assistantId }) => {
             d3VelocityDecay={0.3}
             width={dimensions.width}
             height={dimensions.height}
-            onNodeClick={handleNodeClick}
+            enableNodeDrag={true}
+            enableZoomInteraction={true}
+            enablePanInteraction={true}
+            minZoom={0.5}
+            maxZoom={4}
+            cooldownTime={2000}
+            cooldownTicks={50}
+            warmupTicks={100}
             nodeCanvasObject={(node: Node, ctx: CanvasRenderingContext2D, globalScale: number) => {
               const label = node.name;
               const fontSize = 12/globalScale;
