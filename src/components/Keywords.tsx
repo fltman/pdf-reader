@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { extractKeywords } from '../services/OpenAIService';
+import { extractKeywords, KeywordWithDefinition } from '../services/OpenAIService';
 
 interface KeywordsProps {
   threadId: string | null;
@@ -8,7 +8,7 @@ interface KeywordsProps {
 }
 
 const Keywords: React.FC<KeywordsProps> = ({ threadId, assistantId, isActive }) => {
-  const [keywords, setKeywords] = useState<string[]>([]);
+  const [keywords, setKeywords] = useState<KeywordWithDefinition[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -56,15 +56,30 @@ const Keywords: React.FC<KeywordsProps> = ({ threadId, assistantId, isActive }) 
   return (
     <div className="p-4 bg-white rounded-lg shadow">
       <h2 className="text-xl font-bold mb-4">Keywords</h2>
-      <div className="flex flex-wrap gap-2">
-        {keywords.map((keyword, index) => (
+      
+      {/* Keywords pills */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {keywords.map((item, index) => (
           <span
             key={index}
             className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
           >
-            {keyword}
+            {item.keyword}
           </span>
         ))}
+      </div>
+
+      {/* Definition list */}
+      <div className="border-t pt-4">
+        <h3 className="text-lg font-semibold mb-3">Definitions</h3>
+        <dl className="space-y-3">
+          {keywords.map((item, index) => (
+            <div key={index} className="grid grid-cols-[1fr,2fr] gap-4">
+              <dt className="font-medium text-gray-900">{item.keyword}</dt>
+              <dd className="text-gray-600">{item.definition}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
     </div>
   );

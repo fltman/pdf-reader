@@ -88,17 +88,30 @@ export const generateSummary = async (threadId: string, assistantId: string): Pr
   ).then(response => response || 'Unable to generate summary');
 };
 
-export const extractKeywords = async (threadId: string, assistantId: string): Promise<string[]> => {
+export interface KeywordWithDefinition {
+  keyword: string;
+  definition: string;
+}
+
+export const extractKeywords = async (threadId: string, assistantId: string): Promise<KeywordWithDefinition[]> => {
   return threadQueue.add(threadId, () =>
     createThreadRun(
       threadId,
       assistantId,
-      "Extract the most important keywords and key concepts from the document. Return them as a comma-separated list. Each keyword or key phrase should be 1-3 words maximum. Do not include full sentences or explanations. For example: 'artificial intelligence, neural networks, machine learning' not 'The document discusses artificial intelligence and its applications.'"
+      "Extract the most important keywords and key concepts from the document. Return ONLY a raw JSON array of objects with keywords and definitions. Each object must have exactly two fields: 'keyword' and 'definition'. The response must start with '[' and end with ']'. Do not include any other text, explanations, or formatting. Example of valid response: [{\"keyword\":\"artificial intelligence\",\"definition\":\"The simulation of human intelligence by machines\"},{\"keyword\":\"neural networks\",\"definition\":\"Computing systems inspired by biological neural networks\"}]"
     )
   ).then(response => {
     if (response) {
-      const keywords = response.split(',');
-      return keywords.map((keyword: string) => keyword.trim()).filter(keyword => keyword.length > 0);
+      try {
+        // Remove any potential whitespace or newlines before parsing
+        const cleanResponse = response.trim();
+        const keywordData = JSON.parse(cleanResponse) as KeywordWithDefinition[];
+        return keywordData.filter(item => item.keyword && item.definition);
+      } catch (error) {
+        console.error('Error parsing keywords response:', error);
+        console.error('Raw response:', response);
+        return [];
+      }
     }
     return [];
   });
