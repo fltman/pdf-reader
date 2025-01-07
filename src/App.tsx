@@ -5,6 +5,8 @@ import Keywords from './components/Keywords';
 import PageNotes from './components/PageNotes';
 import DocumentChat from './components/DocumentChat';
 import MindMap from './components/MindMap';
+import Explain from './components/Explain';
+import Read from './components/Read';
 import { initializeAssistant } from './services/openai';
 
 const App: React.FC = () => {
@@ -15,7 +17,7 @@ const App: React.FC = () => {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [vectorStoreId, setVectorStoreId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'summary' | 'chat' | 'mindmap' | 'notes'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'chat' | 'mindmap' | 'notes' | 'explain' | 'read'>('summary');
   const [isInitialized, setIsInitialized] = useState(false);
 
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,6 +84,14 @@ const App: React.FC = () => {
     />
   ), [threadId, assistantId, activeTab]);
 
+  const explainSection = useMemo(() => (
+    <Explain 
+      threadId={threadId} 
+      assistantId={assistantId} 
+      isActive={activeTab === 'explain'} 
+    />
+  ), [threadId, assistantId, activeTab]);
+
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       {!pdfDocument ? (
@@ -137,6 +147,16 @@ const App: React.FC = () => {
                   Summary
                 </button>
                 <button
+                  onClick={() => setActiveTab('explain')}
+                  className={`px-4 py-2 rounded ${
+                    activeTab === 'explain'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Explain
+                </button>
+                <button
                   onClick={() => setActiveTab('chat')}
                   className={`px-4 py-2 rounded ${
                     activeTab === 'chat'
@@ -166,11 +186,24 @@ const App: React.FC = () => {
                 >
                   Notes
                 </button>
+                <button
+                  onClick={() => setActiveTab('read')}
+                  className={`px-4 py-2 rounded ${
+                    activeTab === 'read'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Read
+                </button>
               </div>
 
               {/* Use cached components */}
               <div className={activeTab === 'summary' ? 'block' : 'hidden'}>
                 {summarySection}
+              </div>
+              <div className={activeTab === 'explain' ? 'block' : 'hidden'}>
+                {explainSection}
               </div>
               <div className={activeTab === 'chat' ? 'block' : 'hidden'}>
                 {chatSection}
@@ -181,6 +214,9 @@ const App: React.FC = () => {
               <div className={activeTab === 'notes' ? 'block' : 'hidden'}>
                 <PageNotes threadId={threadId} />
               </div>
+              {activeTab === 'read' && (
+                <Read isActive={activeTab === 'read'} />
+              )}
             </div>
           </div>
         </div>

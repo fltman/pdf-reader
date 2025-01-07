@@ -1,0 +1,63 @@
+.textLayer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  opacity: 0.2;
+  line-height: 1.0;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  pointer-events: auto;
+  mix-blend-mode: multiply;
+  z-index: 1;
+  transform-origin: 0 0;
+}
+
+.textLayer > div {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: left bottom;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+  /* Prevent text from being selected across multiple columns */
+  max-width: 100%;
+  overflow: hidden;
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  -khtml-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  pointer-events: all;
+  z-index: 2;
+  /* Improve text rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+.textLayer > div::selection {
+  background: rgba(83, 114, 255, 0.9);
+  mix-blend-mode: multiply;
+}
+
+.textLayer > div::-moz-selection {
+  background: rgba(83, 114, 255, 0.9);
+  mix-blend-mode: multiply;
+}
+
+/* Hide selection outside text layer */
+::selection {
+  background: transparent;
+}
+
+::-moz-selection {
+  background: transparent;
+} 

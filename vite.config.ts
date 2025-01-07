@@ -8,5 +8,14 @@ export default defineConfig({
     fs: {
       allow: ['..']
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          pdfjsWorker: ['pdfjs-dist/build/pdf.worker.mjs']
+        }
+      }
+    }
   }
 })
