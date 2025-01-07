@@ -52,6 +52,25 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     };
   }, [pdfDocument, setTotalPages]);
 
+  // Add a function to update text layer position
+  const updateTextLayerPosition = () => {
+    if (!canvasRef.current || !textLayerRef.current || !containerRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const textLayer = textLayerRef.current;
+    const container = containerRef.current;
+    
+    const containerRect = container.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    
+    // Calculate the offset relative to the container
+    const offsetX = canvasRect.left - containerRect.left;
+    const offsetY = canvasRect.top - containerRect.top;
+    
+    textLayer.style.left = `${offsetX}px`;
+    textLayer.style.top = `${offsetY}px`;
+  };
+
   useEffect(() => {
     const renderPage = async () => {
       if (!pdfInstance || !canvasRef.current || !textLayerRef.current || !containerRef.current) return;
@@ -111,21 +130,23 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
         const fragment = document.createDocumentFragment();
 
         textItems.forEach((item) => {
-          if (!item.str.trim()) return; // Skip empty strings
+          if (!item.str.trim()) return;
 
           const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
           const div = document.createElement('div');
           
           div.textContent = item.str;
           
-          // Calculate position and size
           const fontSize = Math.sqrt((tx[0] * tx[0]) + (tx[1] * tx[1]));
           const rotation = Math.atan2(tx[1], tx[0]);
           
-          // Apply styles with position offset adjustments
+          // Apply offset adjustments to match PDF content
+          const offsetX = -0; // Left offset adjustment
+          const offsetY = -10; // Top offset adjustment
+          
           Object.assign(div.style, {
-            left: `${tx[4] - 28}px`,  // Slight left offset
-            top: `${tx[5] - 13}px`,   // Slight upward offset
+            left: `${tx[4] + offsetX}px`,
+            top: `${tx[5] + offsetY}px`,
             fontSize: `${fontSize}px`,
             fontFamily: item.fontName || 'sans-serif',
             transform: `rotate(${rotation}rad)`,
@@ -146,11 +167,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
         textLayer.appendChild(fragment);
 
-        // Ensure text layer is properly positioned
-        const canvasBox = canvas.getBoundingClientRect();
-        textLayer.style.left = `${canvasBox.left}px`;
-        textLayer.style.top = `${canvasBox.top}px`;
-
+        // Update text layer position after rendering
+        updateTextLayerPosition();
         setLoading(false);
       } catch (error: any) {
         if (error?.name !== 'RenderingCancelled') {
@@ -162,25 +180,39 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
     renderPage();
 
-    // Add window resize handler to maintain alignment
+    // Update text layer position on window resize
     const handleResize = () => {
-      if (canvasRef.current && textLayerRef.current) {
-        const canvasBox = canvasRef.current.getBoundingClientRect();
-        textLayerRef.current.style.left = `${canvasBox.left}px`;
-        textLayerRef.current.style.top = `${canvasBox.top}px`;
-      }
+      updateTextLayerPosition();
     };
 
     window.addEventListener('resize', handleResize);
+    // Also update position after a short delay to ensure everything is rendered
+    const timeoutId = setTimeout(updateTextLayerPosition, 100);
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      clearTimeout(timeoutId);
       if (renderTaskRef.current) {
         renderTaskRef.current.cancel();
         renderTaskRef.current = null;
       }
     };
   }, [currentPage, pdfInstance, scale]);
+
+  // Add scroll handler to update text layer position
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      updateTextLayerPosition();
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   // Handle text selection
   useEffect(() => {
