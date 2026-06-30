@@ -1,5 +1,7 @@
 # PDF Reader with AI Analysis
 
+[![Support me on Patreon](https://img.shields.io/badge/Patreon-Support%20my%20work-FF424D?style=flat&logo=patreon&logoColor=white)](https://www.patreon.com/AndersBjarby)
+
 A React-based PDF reader application that uses OpenAI's API to analyze documents, generate summaries, extract keywords, and create mind maps. Built with React, TypeScript, and Vite.
 
 ## Features
